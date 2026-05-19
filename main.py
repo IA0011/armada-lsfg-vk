@@ -13,6 +13,12 @@ SYSTEM_JSON = "/usr/share/lsfg-vk/VkLayer_LS_frame_generation.json"
 SYSTEM_WRAPPER = "/usr/bin/lsfg"
 SYSTEM_SETUP = "/usr/bin/lsfg-vk-setup"
 
+# Runtime-install paths (overlay mode, no rebuild required)
+RUNTIME_SO = os.path.join(LSFG_DIR, "lib/liblsfg-vk.so")
+RUNTIME_JSON = os.path.join(LSFG_DIR, "lib/VkLayer_LS_frame_generation.json")
+RUNTIME_WRAPPER = os.path.join(LSFG_DIR, "bin/lsfg")
+RUNTIME_SETUP = os.path.join(LSFG_DIR, "bin/lsfg-vk-setup")
+
 # FEX RootFS install targets (deployed by lsfg-vk-setup.service)
 FEX_ROOTFS = "/storage/.local/share/fex-emu/RootFS/ArchLinux"
 FEX_SO = os.path.join(FEX_ROOTFS, "usr/lib/liblsfg-vk.so")
@@ -36,11 +42,10 @@ DEFAULT_SETTINGS = {
 
 
 def _system_installed():
-    """Check that ROCKNIX has installed the lsfg-vk package."""
+    """Check that lsfg-vk is available (system package or runtime install)."""
     return (
-        os.path.exists(SYSTEM_SO)
-        and os.path.exists(SYSTEM_JSON)
-        and os.path.exists(SYSTEM_WRAPPER)
+        (os.path.exists(SYSTEM_SO) and os.path.exists(SYSTEM_WRAPPER))
+        or (os.path.exists(RUNTIME_SO) and os.path.exists(RUNTIME_WRAPPER))
     )
 
 
@@ -108,14 +113,34 @@ class Plugin:
         return True
 
     async def reinstall_layer(self):
-        """Re-run the system setup script (e.g. after Proton update)."""
-        if not os.path.exists(SYSTEM_SETUP):
+        """Re-run the setup script (e.g. after Proton update)."""
+        setup = SYSTEM_SETUP if os.path.exists(SYSTEM_SETUP) else RUNTIME_SETUP
+        if not os.path.exists(setup):
             return False
         try:
-            subprocess.run([SYSTEM_SETUP], check=True, timeout=30)
+            subprocess.run([setup], check=True, timeout=30)
             return True
         except Exception as e:
             decky.logger.error(f"reinstall_layer failed: {e}")
+            return False
+
+    async def install_runtime(self):
+        """Download and install lsfg-vk layer without rebuilding the OS."""
+        install_script = os.path.join(
+            decky.DECKY_PLUGIN_DIR, "install.sh"
+        )
+        if not os.path.exists(install_script):
+            decky.logger.error("install.sh not found in plugin directory")
+            return False
+        try:
+            subprocess.run(
+                ["bash", install_script],
+                check=True,
+                timeout=120,
+            )
+            return True
+        except Exception as e:
+            decky.logger.error(f"install_runtime failed: {e}")
             return False
 
     async def _main(self):
