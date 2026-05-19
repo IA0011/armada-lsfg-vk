@@ -5,6 +5,9 @@ A [Decky Loader](https://decky.xyz/) plugin that provides per-game configuration
 ## Requirements
 
 - ROCKNIX with Steam and [Decky Loader](https://decky.xyz/) installed
+  ```bash
+  curl -L https://gist.github.com/seilent/5528d25197518a6b3851d8d3010ab881/raw/f0541c0b1cf9961fd696c9c496dab8132d8b3f61/install_release.sh | sh
+  ```
 - [Lossless Scaling](https://store.steampowered.com/app/993090/Lossless_Scaling/) installed via Steam
 - WiFi connection (for first-time install)
 
