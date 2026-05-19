@@ -49,6 +49,7 @@ Default config at `/storage/.config/lsfg-vk/default.json` applies to any game wi
 ## Known Issues
 
 - **LSFG is not working with Snapdragon Elite devices.**
+- **Not working with ARM64 Proton yet.**
 
 ## Building
 
