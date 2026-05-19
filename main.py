@@ -125,7 +125,7 @@ class Plugin:
             return False
 
     async def install_runtime(self):
-        """Download and install lsfg-vk layer without rebuilding the OS."""
+        """Schedule lsfg-vk install on next boot (runs natively, outside FEX)."""
         install_script = os.path.join(
             decky.DECKY_PLUGIN_DIR, "install.sh"
         )
@@ -133,11 +133,27 @@ class Plugin:
             decky.logger.error("install.sh not found in plugin directory")
             return False
         try:
-            subprocess.run(
-                ["bash", install_script],
-                check=True,
-                timeout=120,
-            )
+            svc_dir = "/storage/.config/system.d"
+            svc_path = os.path.join(svc_dir, "lsfg-vk-install.service")
+            wants_dir = os.path.join(svc_dir, "multi-user.target.wants")
+            os.makedirs(wants_dir, exist_ok=True)
+            with open(svc_path, "w") as f:
+                f.write(f"""[Unit]
+Description=LSFG-VK one-time install
+After=network-online.target plugin_loader.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do getent hosts github.com >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
+ExecStart=/bin/sh {install_script}
+ExecStartPost=/bin/rm -f {svc_path} {wants_dir}/lsfg-vk-install.service
+""")
+            link = os.path.join(wants_dir, "lsfg-vk-install.service")
+            if os.path.exists(link):
+                os.remove(link)
+            os.symlink(svc_path, link)
+            decky.logger.info("lsfg-vk install scheduled for next boot")
             return True
         except Exception as e:
             decky.logger.error(f"install_runtime failed: {e}")
