@@ -84,10 +84,12 @@ def _load_game_settings(app_id):
     settings = _load_settings(path)
     if settings is not None:
         return settings
+    # Auto-create from defaults on first access
     settings = _load_settings(DEFAULT_CONF)
-    if settings is not None:
-        return settings
-    return dict(DEFAULT_SETTINGS)
+    if settings is None:
+        settings = dict(DEFAULT_SETTINGS)
+    _save_json(path, settings)
+    return settings
 
 
 def _save_json(path, data):
