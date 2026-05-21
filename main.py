@@ -80,6 +80,9 @@ def _load_settings(path):
 
 
 def _load_game_settings(app_id):
+    if not app_id or app_id == "0" or app_id == "None":
+        settings = _load_settings(DEFAULT_CONF)
+        return settings if settings else dict(DEFAULT_SETTINGS)
     path = os.path.join(GAMES_DIR, f"{app_id}.json")
     settings = _load_settings(path)
     if settings is not None:
