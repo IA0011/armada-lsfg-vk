@@ -182,12 +182,18 @@ class Plugin:
                     # Create placeholder so the layer doesn't error
                     open(LOSSLESS_DLL_SYMLINK, "a").close()
 
-            # 4. Install ls wrapper
+            # 4. Install lsfg wrapper
             bin_dir = os.path.join(LSFG_DIR, "bin")
             os.makedirs(bin_dir, exist_ok=True)
-            wrapper_src = os.path.join(decky.DECKY_PLUGIN_DIR, "defaults/ls")
+            wrapper_src = os.path.join(decky.DECKY_PLUGIN_DIR, "defaults/lsfg")
             shutil.copy2(wrapper_src, ARM64_WRAPPER)
             os.chmod(ARM64_WRAPPER, 0o755)
+
+            # 5. Create ~/lsfg symlink
+            home_link = os.path.expanduser("~/lsfg")
+            if os.path.lexists(home_link):
+                os.remove(home_link)
+            os.symlink(ARM64_WRAPPER, home_link)
 
             decky.logger.info("ARM64 layer deployed successfully")
             return True
@@ -225,10 +231,10 @@ class Plugin:
     async def install_runtime(self):
         """Schedule lsfg-vk install on next boot (runs natively, outside FEX)."""
         install_script = os.path.join(
-            decky.DECKY_PLUGIN_DIR, "install.sh"
+            decky.DECKY_PLUGIN_DIR, "install-arm64.sh"
         )
         if not os.path.exists(install_script):
-            decky.logger.error("install.sh not found in plugin directory")
+            decky.logger.error("install-arm64.sh not found in plugin directory")
             return False
         try:
             svc_dir = "/storage/.config/system.d"

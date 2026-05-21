@@ -12,8 +12,8 @@ set -euo pipefail
 LSFG_SO_URL="${LSFG_SO_URL:-https://github.com/seilent/lsfg-vk/releases/download/latest/lsfg-vk-arm64.tar.gz}"
 LSFG_DIR="/storage/.config/lsfg-vk"
 FEX_CONFIG="/storage/.config/fex-emu/Config.json"
-LAYER_JSON="/usr/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation.json"
-LAYER_SO="/usr/lib/liblsfg-vk.so"
+LAYER_JSON="/usr/lib/pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation.json"
+LAYER_SO="/usr/lib/liblsfg-vk-arm64.so"
 
 log() { echo "[lsfg-vk-arm64] $*"; }
 
@@ -43,7 +43,7 @@ else
     "layer": {
         "name": "VK_LAYER_LS_frame_generation",
         "type": "GLOBAL",
-        "library_path": "/usr/lib/liblsfg-vk.so",
+        "library_path": "/usr/lib/liblsfg-vk-arm64.so",
         "api_version": "1.3.0",
         "implementation_version": "1",
         "description": "LSFG frame generation (ARM64 native via thunks)",
@@ -82,13 +82,14 @@ fi
 # Create wrapper script
 log "Creating lsfg wrapper..."
 mkdir -p "${LSFG_DIR}/bin"
-cat > "${LSFG_DIR}/bin/lsfg" << 'EOF'
-#!/bin/sh
-export LSFG_ENABLE=1
-export DXVK_FRAME_RATE=30
-exec "$@"
-EOF
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "${SCRIPT_DIR}/defaults/lsfg" ]; then
+    cp "${SCRIPT_DIR}/defaults/lsfg" "${LSFG_DIR}/bin/lsfg"
+else
+    curl -sSL "https://raw.githubusercontent.com/seilent/rocknix-lsfg-vk/arm64-thunks/defaults/lsfg" -o "${LSFG_DIR}/bin/lsfg"
+fi
 chmod +x "${LSFG_DIR}/bin/lsfg"
+ln -sf "${LSFG_DIR}/bin/lsfg" ~/lsfg
 
 # Create systemd service
 log "Installing systemd service..."
