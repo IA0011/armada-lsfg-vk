@@ -107,6 +107,15 @@ class Plugin:
     async def get_game_settings(self, app_id: str):
         return _load_game_settings(app_id)
 
+    async def list_game_profiles(self):
+        """List app IDs that have per-game configs."""
+        profiles = []
+        if os.path.isdir(GAMES_DIR):
+            for f in os.listdir(GAMES_DIR):
+                if f.endswith(".json"):
+                    profiles.append(f.replace(".json", ""))
+        return profiles
+
     async def save_game_settings(self, app_id: str, settings: str):
         path = os.path.join(GAMES_DIR, f"{app_id}.json")
         _save_json(path, json.loads(settings))

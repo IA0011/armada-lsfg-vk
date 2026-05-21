@@ -39,6 +39,7 @@ const getDefaultSettings = callable<[], Settings>("get_default_settings");
 const saveDefaultSettings = callable<[settings: string], boolean>("save_default_settings");
 const reinstallLayer = callable<[], boolean>("reinstall_layer");
 const installRuntime = callable<[], boolean>("install_runtime");
+const listGameProfiles = callable<[], string[]>("list_game_profiles");
 
 const MULTIPLIER_OPTIONS = [
   { value: 0, label: "OFF" },
@@ -128,12 +129,17 @@ function Content() {
   const [gameName, setGameName] = useState(state.runningGameName);
   const [dirty, setDirty] = useState(false);
   const [reinstalling, setReinstalling] = useState(false);
+  const [profiles, setProfiles] = useState<string[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [profileSettings, setProfileSettings] = useState<Settings | null>(null);
 
   const refresh = async () => {
     const s = await getStatus();
     setStatus(s);
     const d = await getDefaultSettings();
     setDefaults(d);
+    const p = await listGameProfiles();
+    setProfiles(p);
   };
 
   const loadGameSettings = async (id: number) => {
@@ -276,6 +282,36 @@ function Content() {
               Applied to games without per-game config
             </div>
           </PanelSectionRow>
+        </PanelSection>
+      )}
+
+      {profiles.length > 0 && (
+        <PanelSection title="Game Profiles">
+          <PanelSectionRow>
+            <SliderField
+              label="Select Game"
+              description={selectedProfile ? (appStore.GetAppOverviewByAppID(Number(selectedProfile))?.display_name ?? `App ${selectedProfile}`) : "None"}
+              value={selectedProfile ? profiles.indexOf(selectedProfile) : -1}
+              min={0}
+              max={profiles.length - 1}
+              step={1}
+              notchCount={profiles.length}
+              notchLabels={profiles.map((p, i) => ({ notchIndex: i, label: appStore.GetAppOverviewByAppID(Number(p))?.display_name?.substring(0, 8) ?? p }))}
+              onChange={async (idx) => {
+                const id = profiles[idx];
+                setSelectedProfile(id);
+                const cfg = await getGameSettings(id);
+                setProfileSettings(cfg);
+              }}
+            />
+          </PanelSectionRow>
+          {selectedProfile && profileSettings && (
+            <SettingsControls settings={profileSettings} onChange={async (key, value) => {
+              const updated = { ...profileSettings, [key]: value };
+              setProfileSettings(updated);
+              await saveGameSettings(selectedProfile, JSON.stringify(updated));
+            }} />
+          )}
         </PanelSection>
       )}
 
