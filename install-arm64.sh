@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-LSFG_SO_URL="${LSFG_SO_URL:-https://github.com/PancakeTAS/lsfg-vk/releases/download/v1.0.0/liblsfg-vk-arm64.so}"
+LSFG_SO_URL="${LSFG_SO_URL:-https://github.com/seilent/lsfg-vk/releases/download/latest/lsfg-vk-arm64.tar.gz}"
 LSFG_DIR="/storage/.config/lsfg-vk"
 FEX_CONFIG="/storage/.config/fex-emu/Config.json"
 LAYER_JSON="/usr/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation.json"
@@ -24,10 +24,11 @@ if [ "$(uname -m)" != "aarch64" ]; then
 fi
 
 # Download ARM64 .so
-log "Downloading ARM64 liblsfg-vk.so..."
-curl -sSL "${LSFG_SO_URL}" -o /tmp/liblsfg-vk.so
-install -D -m 0644 /tmp/liblsfg-vk.so "${LAYER_SO}"
-rm -f /tmp/liblsfg-vk.so
+log "Downloading ARM64 liblsfg-vk..."
+curl -sSL "${LSFG_SO_URL}" -o /tmp/lsfg-vk-arm64.tar.gz
+tar -xzf /tmp/lsfg-vk-arm64.tar.gz -C /tmp liblsfg-vk-arm64.so
+install -D -m 0644 /tmp/liblsfg-vk-arm64.so "${LAYER_SO}"
+rm -f /tmp/lsfg-vk-arm64.tar.gz /tmp/liblsfg-vk-arm64.so
 
 # Deploy layer JSON
 log "Installing layer manifest..."
