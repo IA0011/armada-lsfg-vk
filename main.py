@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import subprocess
 import decky
 
@@ -30,9 +31,19 @@ FEX_JSON = os.path.join(
 # FEX config (for Vulkan thunks)
 FEX_CONFIG = "/storage/.config/fex-emu/Config.json"
 
-# Lossless Scaling DLL detection (for user warning only)
+# ARM64 native paths
+ARM64_SO = "/usr/lib/liblsfg-vk-arm64.so"
+ARM64_MANIFEST_DIR = "/usr/lib/pressure-vessel/overrides/share/vulkan/implicit_layer.d"
+ARM64_MANIFEST = os.path.join(ARM64_MANIFEST_DIR, "VkLayer_LS_frame_generation.json")
+ARM64_WRAPPER = os.path.join(LSFG_DIR, "bin/ls")
+
+# Lossless Scaling DLL paths
 LOSSLESS_DLL_PATH = (
     "/storage/games-internal/roms/steam/steamapps/common/"
+    "Lossless Scaling/Lossless.dll"
+)
+LOSSLESS_DLL_SYMLINK = (
+    "/storage/.local/share/Steam/steamapps/common/"
     "Lossless Scaling/Lossless.dll"
 )
 
@@ -49,16 +60,22 @@ def _system_installed():
     return (
         (os.path.exists(SYSTEM_SO) and os.path.exists(SYSTEM_WRAPPER))
         or (os.path.exists(RUNTIME_SO) and os.path.exists(RUNTIME_WRAPPER))
+        or os.path.exists(ARM64_SO)
     )
 
 
 def _layer_deployed():
-    """Check that the layer has been deployed into FEX RootFS."""
-    return os.path.exists(FEX_SO) and os.path.exists(FEX_JSON)
+    """Check that the ARM64 native layer SO exists."""
+    return os.path.exists(ARM64_SO)
+
+
+def _manifest_deployed():
+    """Check that the manifest is in the pressure-vessel overrides dir."""
+    return os.path.exists(ARM64_MANIFEST)
 
 
 def _dll_detected():
-    return os.path.exists(LOSSLESS_DLL_PATH)
+    return os.path.exists(LOSSLESS_DLL_PATH) or os.path.exists(LOSSLESS_DLL_SYMLINK)
 
 
 def _thunks_enabled():
@@ -100,12 +117,28 @@ def _save_json(path, data):
         json.dump(data, f, indent=2)
 
 
+def _enable_thunks():
+    """Enable FEX Vulkan thunks in Config.json."""
+    os.makedirs(os.path.dirname(FEX_CONFIG), exist_ok=True)
+    if os.path.exists(FEX_CONFIG):
+        with open(FEX_CONFIG, "r") as f:
+            cfg = json.load(f)
+    else:
+        cfg = {}
+    if "ThunksDB" not in cfg:
+        cfg["ThunksDB"] = {}
+    cfg["ThunksDB"]["Vulkan"] = 1
+    with open(FEX_CONFIG, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+
 class Plugin:
 
     async def get_status(self):
         return {
             "system_installed": _system_installed(),
             "layer_deployed": _layer_deployed(),
+            "manifest_deployed": _manifest_deployed(),
             "dll_detected": _dll_detected(),
             "thunks_enabled": _thunks_enabled(),
         }
@@ -128,8 +161,47 @@ class Plugin:
         _save_json(DEFAULT_CONF, json.loads(settings))
         return True
 
+    async def deploy_arm64(self):
+        """Deploy ARM64 native layer: manifest, thunks, DLL symlink, wrapper."""
+        try:
+            # 1. Install manifest to pressure-vessel overrides
+            os.makedirs(ARM64_MANIFEST_DIR, exist_ok=True)
+            manifest_src = os.path.join(decky.DECKY_PLUGIN_DIR, "defaults/VkLayer_LS_frame_generation.json")
+            shutil.copy2(manifest_src, ARM64_MANIFEST)
+
+            # 2. Enable FEX Vulkan thunks
+            _enable_thunks()
+
+            # 3. Create Lossless.dll symlink
+            dll_dir = os.path.dirname(LOSSLESS_DLL_SYMLINK)
+            os.makedirs(dll_dir, exist_ok=True)
+            if not os.path.exists(LOSSLESS_DLL_SYMLINK):
+                if os.path.exists(LOSSLESS_DLL_PATH):
+                    os.symlink(LOSSLESS_DLL_PATH, LOSSLESS_DLL_SYMLINK)
+                else:
+                    # Create placeholder so the layer doesn't error
+                    open(LOSSLESS_DLL_SYMLINK, "a").close()
+
+            # 4. Install ls wrapper
+            bin_dir = os.path.join(LSFG_DIR, "bin")
+            os.makedirs(bin_dir, exist_ok=True)
+            wrapper_src = os.path.join(decky.DECKY_PLUGIN_DIR, "defaults/ls")
+            shutil.copy2(wrapper_src, ARM64_WRAPPER)
+            os.chmod(ARM64_WRAPPER, 0o755)
+
+            decky.logger.info("ARM64 layer deployed successfully")
+            return True
+        except Exception as e:
+            decky.logger.error(f"deploy_arm64 failed: {e}")
+            return False
+
     async def reinstall_layer(self):
-        """Re-run the setup script (e.g. after Proton update)."""
+        """Deploy ARM64 native layer (preferred) or fall back to legacy setup."""
+        # Try ARM64 native approach first
+        if os.path.exists(ARM64_SO):
+            return await self.deploy_arm64()
+
+        # Legacy fallback: run setup script
         setup = SYSTEM_SETUP if os.path.exists(SYSTEM_SETUP) else RUNTIME_SETUP
         if not os.path.exists(setup):
             return False
@@ -143,17 +215,7 @@ class Plugin:
     async def enable_thunks(self):
         """Enable FEX Vulkan thunks in Config.json."""
         try:
-            os.makedirs(os.path.dirname(FEX_CONFIG), exist_ok=True)
-            if os.path.exists(FEX_CONFIG):
-                with open(FEX_CONFIG, "r") as f:
-                    cfg = json.load(f)
-            else:
-                cfg = {}
-            if "ThunksDB" not in cfg:
-                cfg["ThunksDB"] = {}
-            cfg["ThunksDB"]["Vulkan"] = 1
-            with open(FEX_CONFIG, "w") as f:
-                json.dump(cfg, f, indent=2)
+            _enable_thunks()
             decky.logger.info("FEX Vulkan thunks enabled")
             return True
         except Exception as e:

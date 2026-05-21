@@ -1,0 +1,37 @@
+#!/bin/bash
+# LSFG-VK ARM64 launch wrapper
+# Reads per-game or default settings and sets env vars for the layer
+
+CONFIG_DIR="/storage/.config/lsfg-vk"
+APP_ID="${SteamAppId:-0}"
+
+# Load settings (per-game or default)
+if [ -f "$CONFIG_DIR/games/$APP_ID.json" ]; then
+    SETTINGS="$CONFIG_DIR/games/$APP_ID.json"
+else
+    SETTINGS="$CONFIG_DIR/default.json"
+fi
+
+# Parse JSON settings
+MULTIPLIER=$(python3 -c "import json; d=json.load(open('$SETTINGS')); print(d.get('multiplier', 2))" 2>/dev/null || echo 2)
+FPS_LIMIT=$(python3 -c "import json; d=json.load(open('$SETTINGS')); print(d.get('fps_limit', 30))" 2>/dev/null || echo 30)
+FLOW_SCALE=$(python3 -c "import json; d=json.load(open('$SETTINGS')); print(d.get('flow_scale', 0.3))" 2>/dev/null || echo 0.3)
+PERF_MODE=$(python3 -c "import json; d=json.load(open('$SETTINGS')); print(d.get('performance_mode', 1))" 2>/dev/null || echo 1)
+
+# If multiplier is 0, disable frame gen
+if [ "$MULTIPLIER" = "0" ]; then
+    export DISABLE_LSFG=1
+else
+    export LSFG_ENABLE=1
+    export LSFGVK_ENV=1
+    export LSFGVK_DLL_PATH="/storage/.local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll"
+    export LSFGVK_MULTIPLIER="$MULTIPLIER"
+    export LSFGVK_FLOW_SCALE="$FLOW_SCALE"
+    export LSFGVK_PERFORMANCE_MODE="$PERF_MODE"
+    export DXVK_FRAME_RATE="$FPS_LIMIT"
+fi
+
+# Enable FEX Vulkan thunks
+export STEAM_COMPAT_FEX_CONFIG=/storage/.config/fex-emu/Config.json
+
+exec "$@"
