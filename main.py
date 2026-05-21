@@ -66,8 +66,8 @@ def _system_installed():
 
 
 def _layer_deployed():
-    """Check that the ARM64 native layer SO exists."""
-    return os.path.exists(ARM64_SO)
+    """Check that the ARM64 native layer SO and manifest are both in place."""
+    return os.path.exists(ARM64_SO) and os.path.exists(ARM64_MANIFEST)
 
 
 def _manifest_deployed():

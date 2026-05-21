@@ -26,9 +26,9 @@ fi
 # Download ARM64 .so
 log "Downloading ARM64 liblsfg-vk..."
 curl -sSL "${LSFG_SO_URL}" -o /tmp/lsfg-vk-arm64.tar.gz
-tar -xzf /tmp/lsfg-vk-arm64.tar.gz -C /tmp liblsfg-vk-arm64.so
+tar -xzf /tmp/lsfg-vk-arm64.tar.gz -C /tmp
 install -D -m 0644 /tmp/liblsfg-vk-arm64.so "${LAYER_SO}"
-rm -f /tmp/lsfg-vk-arm64.tar.gz /tmp/liblsfg-vk-arm64.so
+rm -f /tmp/lsfg-vk-arm64.tar.gz /tmp/liblsfg-vk-arm64.so /tmp/VkLayer_LSFGVK_frame_generation.json
 
 # Deploy layer JSON
 log "Installing layer manifest..."
