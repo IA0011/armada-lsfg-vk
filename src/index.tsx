@@ -291,35 +291,41 @@ function Content() {
       </PanelSection>
 
       {defaults && (
-        <PanelSection title="Default Settings">
-          <SettingsControls settings={defaults} onChange={updateDefaultSetting} />
-          <PanelSectionRow>
-            <div style={{ fontSize: "11px", opacity: 0.5 }}>
-              Applied to games without per-game config
-            </div>
-          </PanelSectionRow>
-        </PanelSection>
-      )}
-
-      {profiles.length > 0 && (
-        <PanelSection title="Game Profiles">
+        <PanelSection title="Settings">
           <PanelSectionRow>
             <Dropdown
-              rgOptions={profiles.map(p => ({
-                data: p,
-                label: appStore.GetAppOverviewByAppID(Number(p))?.display_name ?? `App ${p}`,
-              }))}
-              selectedOption={selectedProfile ?? undefined}
+              rgOptions={[
+                { data: "default", label: "Default" },
+                ...profiles
+                  .map(p => ({
+                    data: p,
+                    label: appStore.GetAppOverviewByAppID(Number(p))?.display_name ?? `App ${p}`,
+                  }))
+                  .sort((a, b) => a.label.localeCompare(b.label))
+              ]}
+              selectedOption={selectedProfile ?? "default"}
               onChange={async (opt) => {
                 const id = opt.data as string;
                 setSelectedProfile(id);
-                const cfg = await getGameSettings(id);
-                setProfileSettings(cfg);
+                if (id === "default") {
+                  setProfileSettings(null);
+                } else {
+                  const cfg = await getGameSettings(id);
+                  setProfileSettings(cfg);
+                }
               }}
-              strDefaultLabel="Select a game..."
             />
           </PanelSectionRow>
-          {selectedProfile && profileSettings && (
+          {(selectedProfile === null || selectedProfile === "default") ? (
+            <>
+              <SettingsControls settings={defaults} onChange={updateDefaultSetting} />
+              <PanelSectionRow>
+                <div style={{ fontSize: "11px", opacity: 0.5 }}>
+                  Applied to games without per-game config
+                </div>
+              </PanelSectionRow>
+            </>
+          ) : profileSettings && (
             <>
               <SettingsControls settings={profileSettings} onChange={async (key, value) => {
                 const updated = { ...profileSettings, [key]: value };
@@ -331,7 +337,7 @@ function Content() {
                   layout="below"
                   onClick={async () => {
                     await deleteGameProfile(selectedProfile);
-                    setSelectedProfile(null);
+                    setSelectedProfile("default");
                     setProfileSettings(null);
                     const p = await listGameProfiles();
                     setProfiles(p);
