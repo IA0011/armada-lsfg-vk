@@ -19,14 +19,13 @@ The plugin includes a runtime installer (`install.sh`) that:
 - Downloads the x86_64 Vulkan layer from the lsfg-vk release
 - Deploys it into the FEX RootFS (where pressure-vessel discovers it)
 - Installs the `lsfg` launch wrapper to `~/`
-- Deploys `user_settings.py` into existing GE-Proton installs
 - Creates a default config with sensible settings
 
 The plugin UI handles:
 - Per-game settings (multiplier, FPS limit, flow scale, performance mode)
 - Default settings editor
 - Status indicators (layer deployed, DLL detected)
-- "Reinstall Layer" button (re-runs setup after Proton updates)
+- "Reinstall Layer" button (re-runs setup after RootFS updates)
 
 ## Usage
 
