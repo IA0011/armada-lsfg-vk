@@ -150,41 +150,39 @@ class Plugin:
         tar_path = os.path.join(lib_dir, "lsfg-vk-arm64.tar.gz")
 
         try:
-            # Download with SSL workaround for devices with clock issues
+            # SSL workaround for devices with invalid clock/date
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
 
             req = urllib.request.Request(DOWNLOAD_URL)
-            with urllib.request.urlopen(req, context=ctx) as resp:
-                total = int(resp.headers.get("Content-Length", 0))
+            with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
                 with open(tar_path, "wb") as f:
-                    downloaded = 0
                     while True:
                         chunk = resp.read(65536)
                         if not chunk:
                             break
                         f.write(chunk)
-                        downloaded += len(chunk)
 
-            # Extract
+            # Extract .so (handle archives with or without ./ prefix)
+            extracted = os.path.join(lib_dir, "liblsfg-vk-arm64.so")
             with tarfile.open(tar_path, "r:gz") as tar:
-                tar.extract("liblsfg-vk-arm64.so", path=lib_dir)
-                # Handle ./ prefix
-                extracted = os.path.join(lib_dir, "liblsfg-vk-arm64.so")
-                if not os.path.exists(extracted):
-                    for m in tar.getmembers():
-                        if m.name.endswith("liblsfg-vk-arm64.so"):
-                            tar.extract(m, path=lib_dir)
-                            src = os.path.join(lib_dir, m.name)
-                            if src != extracted:
-                                os.rename(src, extracted)
-                            break
+                for m in tar.getmembers():
+                    if os.path.basename(m.name) == "liblsfg-vk-arm64.so":
+                        tar.extract(m, path=lib_dir)
+                        src = os.path.join(lib_dir, m.name)
+                        if src != extracted:
+                            os.rename(src, extracted)
+                        break
+                else:
+                    raise FileNotFoundError("liblsfg-vk-arm64.so not found in archive")
 
             os.remove(tar_path)
             decky.logger.info(f"Downloaded ARM64 .so ({os.path.getsize(extracted)} bytes)")
             return {"success": True, "size": os.path.getsize(extracted)}
         except Exception as e:
+            if os.path.exists(tar_path):
+                os.remove(tar_path)
             decky.logger.error(f"download_layer failed: {e}")
             return {"success": False, "error": str(e)}
 
@@ -295,6 +293,57 @@ WantedBy=multi-user.target
         if not result.get("success"):
             return False
         return await self.install_runtime()
+
+    async def uninstall_lsfg(self):
+        """Remove all LSFG-VK artifacts and services. Reboot required."""
+        import shutil
+        try:
+            # Remove overlay and work dirs
+            for d in [OVERLAY_UPPER, "/storage/.tmp/pv-work"]:
+                if os.path.exists(d):
+                    shutil.rmtree(d)
+
+            # Unmount overlay
+            os.system("umount -l /usr/lib 2>/dev/null || true")
+
+            # Remove systemd services
+            svc_dir = "/storage/.config/system.d"
+            wants_dir = os.path.join(svc_dir, "multi-user.target.wants")
+            for svc in ["lsfg-vk-install.service", "lsfg-vk-overlay.service"]:
+                for p in [os.path.join(svc_dir, svc), os.path.join(wants_dir, svc)]:
+                    if os.path.lexists(p):
+                        os.remove(p)
+
+            # Remove XDG manifest
+            xdg_manifest = "/storage/.local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json"
+            if os.path.exists(xdg_manifest):
+                os.remove(xdg_manifest)
+
+            # Remove wrapper symlink
+            home_lsfg = os.path.expanduser("~/lsfg")
+            if os.path.lexists(home_lsfg):
+                os.remove(home_lsfg)
+
+            # Remove lsfg-vk config dir (lib, bin, configs)
+            if os.path.exists(LSFG_DIR):
+                shutil.rmtree(LSFG_DIR)
+
+            # Disable FEX Vulkan thunks
+            if os.path.exists(FEX_CONFIG):
+                with open(FEX_CONFIG, "r") as f:
+                    cfg = json.load(f)
+                if "ThunksDB" in cfg and "Vulkan" in cfg["ThunksDB"]:
+                    del cfg["ThunksDB"]["Vulkan"]
+                    if not cfg["ThunksDB"]:
+                        del cfg["ThunksDB"]
+                    with open(FEX_CONFIG, "w") as f:
+                        json.dump(cfg, f, indent=2)
+
+            decky.logger.info("LSFG-VK uninstalled. Reboot required.")
+            return True
+        except Exception as e:
+            decky.logger.error(f"uninstall_lsfg failed: {e}")
+            return False
 
     async def _main(self):
         os.makedirs(LSFG_DIR, exist_ok=True)

@@ -42,6 +42,7 @@ const installRuntime = callable<[], boolean>("install_runtime");
 const listGameProfiles = callable<[], string[]>("list_game_profiles");
 const downloadLayer = callable<[], {success: boolean, size?: number, error?: string}>("download_layer");
 const deleteGameProfile = callable<[appId: string], boolean>("delete_game_profile");
+const uninstallLsfg = callable<[], boolean>("uninstall_lsfg");
 
 const MULTIPLIER_OPTIONS = [
   { value: 0, label: "OFF" },
@@ -182,10 +183,19 @@ function Content() {
 
   const handleReinstall = async () => {
     setReinstalling(true);
-    await reinstallLayer();
-    await refresh();
-    setReinstalling(false);
-    setDirty(true);
+    try {
+      const ok = await reinstallLayer();
+      await refresh();
+      if (ok) {
+        setDirty(true);
+      } else {
+        setInstallProgress("Reinstall failed");
+      }
+    } catch (e) {
+      setInstallProgress(`Error: ${e}`);
+    } finally {
+      setReinstalling(false);
+    }
   };
 
   if (!status) {
@@ -210,21 +220,26 @@ function Content() {
             disabled={reinstalling || dirty}
             onClick={async () => {
               setReinstalling(true);
-              setInstallProgress("Downloading...");
-              const dl = await downloadLayer();
-              if (!dl.success) {
-                setInstallProgress(`Error: ${dl.error}`);
+              try {
+                setInstallProgress("Downloading...");
+                const dl = await downloadLayer();
+                if (!dl.success) {
+                  setInstallProgress(`Error: ${dl.error}`);
+                  setReinstalling(false);
+                  return;
+                }
+                setInstallProgress("Deploying...");
+                const ok = await installRuntime();
                 setReinstalling(false);
-                return;
-              }
-              setInstallProgress("Deploying...");
-              const ok = await installRuntime();
-              setReinstalling(false);
-              if (ok) {
-                setInstallProgress("");
-                setDirty(true);
-              } else {
-                setInstallProgress("Failed to schedule deploy");
+                if (ok) {
+                  setInstallProgress("");
+                  setDirty(true);
+                } else {
+                  setInstallProgress("Failed to schedule deploy");
+                }
+              } catch (e) {
+                setInstallProgress(`Error: ${e}`);
+                setReinstalling(false);
               }
             }}
           >
@@ -351,7 +366,30 @@ function Content() {
             disabled={reinstalling || dirty}
             onClick={handleReinstall}
           >
-            {reinstalling ? "Downloading..." : dirty ? "Reboot to apply" : "Reinstall Layer"}
+            {reinstalling ? "Downloading..." : dirty ? "Reboot to apply" : installProgress || "Reinstall Layer"}
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            disabled={reinstalling || dirty}
+            onClick={async () => {
+              setReinstalling(true);
+              try {
+                const ok = await uninstallLsfg();
+                if (ok) {
+                  setDirty(true);
+                } else {
+                  setInstallProgress("Uninstall failed");
+                }
+              } catch (e) {
+                setInstallProgress(`Error: ${e}`);
+              } finally {
+                setReinstalling(false);
+              }
+            }}
+          >
+            {reinstalling ? "Working..." : dirty ? "Reboot to apply" : "Uninstall LSFG-VK"}
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
