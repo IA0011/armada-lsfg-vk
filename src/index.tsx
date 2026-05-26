@@ -3,7 +3,7 @@ import {
   PanelSection, PanelSectionRow, SliderField,
   ButtonItem, ToggleField, Dropdown
 } from "@decky/ui";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FaBolt } from "react-icons/fa";
 
 declare const SteamClient: {
@@ -54,6 +54,7 @@ const MULTIPLIER_OPTIONS = [
 const state = {
   runningAppId: 0,
   runningGameName: "",
+  selectedProfile: "default" as string,
 };
 
 interface SettingsControlsProps {
@@ -134,7 +135,7 @@ function Content() {
   const [reinstalling, setReinstalling] = useState(false);
   const [installProgress, setInstallProgress] = useState("");
   const [profiles, setProfiles] = useState<string[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<string>("default");
+  const [selectedProfile, setSelectedProfile] = useState<string>(state.selectedProfile);
   const [profileSettings, setProfileSettings] = useState<Settings | null>(null);
 
   const refresh = async () => {
@@ -156,6 +157,9 @@ function Content() {
   useEffect(() => {
     refresh();
     if (state.runningAppId > 0) loadGameSettings(state.runningAppId);
+    if (state.selectedProfile !== "default") {
+      getGameSettings(state.selectedProfile).then(setProfileSettings);
+    }
     const interval = setInterval(() => {
       if (state.runningAppId !== appId) {
         setAppId(state.runningAppId);
@@ -197,6 +201,16 @@ function Content() {
       setReinstalling(false);
     }
   };
+
+  const rgOptions = useMemo(() => [
+    { data: "default", label: "Default" },
+    ...profiles
+      .map(p => ({
+        data: p,
+        label: appStore.GetAppOverviewByAppID(Number(p))?.display_name ?? `App ${p}`,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  ], [profiles]);
 
   if (!status) {
     return (
@@ -302,19 +316,12 @@ function Content() {
         <PanelSection title="Settings">
           <PanelSectionRow>
             <Dropdown
-              rgOptions={[
-                { data: "default", label: "Default" },
-                ...profiles
-                  .map(p => ({
-                    data: p,
-                    label: appStore.GetAppOverviewByAppID(Number(p))?.display_name ?? `App ${p}`,
-                  }))
-                  .sort((a, b) => a.label.localeCompare(b.label))
-              ]}
+              rgOptions={rgOptions}
               selectedOption={selectedProfile}
               onChange={async (opt) => {
                 const id = opt.data as string;
                 setSelectedProfile(id);
+                state.selectedProfile = id;
                 if (id === "default") {
                   setProfileSettings(null);
                 } else {
