@@ -4,22 +4,22 @@ import urllib.request
 import tarfile
 import decky
 
-LSFG_DIR = "/storage/.config/lsfg-vk"
+LSFG_DIR = "/var/home/armada/.config/lsfg-vk"
 GAMES_DIR = os.path.join(LSFG_DIR, "games")
 DEFAULT_CONF = os.path.join(LSFG_DIR, "default.json")
 
-OVERLAY_UPPER = "/storage/.tmp/pv-upper"
+OVERLAY_UPPER = "/var/home/armada/.tmp/pv-upper"
 ARM64_SO = os.path.join(OVERLAY_UPPER, "liblsfg-vk-arm64.so")
 ARM64_MANIFEST = os.path.join(OVERLAY_UPPER, "pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json")
 ARM64_WRAPPER = os.path.join(LSFG_DIR, "bin/lsfg")
 
-FEX_CONFIG = "/storage/.config/fex-emu/Config.json"
+FEX_CONFIG = "/var/home/armada/.config/fex-emu/Config.json"
 DOWNLOAD_URL = "https://github.com/seilent/lsfg-vk/releases/download/latest/lsfg-vk-arm64.tar.gz"
 
 LOSSLESS_DLL_PATHS = [
-    "/storage/.local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll",
-    "/storage/games-internal/roms/steam/steamapps/common/Lossless Scaling/Lossless.dll",
-    "/storage/roms/steam/steamapps/common/Lossless Scaling/Lossless.dll",
+    "/var/home/armada/.local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll",
+    "/var/home/armada/games-internal/roms/steam/steamapps/common/Lossless Scaling/Lossless.dll",
+    "/var/home/armada/roms/steam/steamapps/common/Lossless Scaling/Lossless.dll",
 ]
 
 DEFAULT_SETTINGS = {
@@ -196,10 +196,10 @@ class Plugin:
         with open(deploy_script, "w") as f:
             f.write(f"""#!/bin/sh
 set -eu
-LSFG_DIR="/storage/.config/lsfg-vk"
-OVERLAY_UPPER="/storage/.tmp/pv-upper"
-OVERLAY_WORK="/storage/.tmp/pv-work"
-FEX_ROOTFS="/storage/.local/share/fex-emu/RootFS/ArchLinux"
+LSFG_DIR="/var/home/armada/.config/lsfg-vk"
+OVERLAY_UPPER="/var/home/armada/.tmp/pv-upper"
+OVERLAY_WORK="/var/home/armada/.tmp/pv-work"
+FEX_ROOTFS="/var/home/armada/.local/share/fex-emu/RootFS/ArchLinux"
 
 # Clean old installs
 rm -f "${{FEX_ROOTFS}}/usr/lib/liblsfg-vk.so" "${{FEX_ROOTFS}}/usr/lib/liblsfg-vk-arm64.so"
@@ -217,9 +217,9 @@ cp "{plugin_dir}/defaults/VkLayer_LS_frame_generation.json" \
 mount -t overlay overlay -o "lowerdir=/usr/lib,upperdir=$OVERLAY_UPPER,workdir=$OVERLAY_WORK" /usr/lib
 
 # XDG manifest for native ARM64 Proton
-mkdir -p /storage/.local/share/vulkan/implicit_layer.d
+mkdir -p /var/home/armada/.local/share/vulkan/implicit_layer.d
 cp "$OVERLAY_UPPER/pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json" \
-    /storage/.local/share/vulkan/implicit_layer.d/
+    /var/home/armada/.local/share/vulkan/implicit_layer.d/
 
 # Wrapper
 cp "{plugin_dir}/defaults/lsfg" "$LSFG_DIR/bin/lsfg"
@@ -229,7 +229,7 @@ ln -sf "$LSFG_DIR/bin/lsfg" ~/lsfg
 # Thunks
 python3 -c "
 import json, os
-c='/storage/.config/fex-emu/Config.json'
+c='/var/home/armada/.config/fex-emu/Config.json'
 os.makedirs(os.path.dirname(c), exist_ok=True)
 cfg = json.load(open(c)) if os.path.exists(c) else {{}}
 cfg.setdefault('ThunksDB', {{}})['Vulkan'] = 1
@@ -242,7 +242,7 @@ json.dump(cfg, open(c, 'w'), indent=2)
         os.chmod(deploy_script, 0o755)
 
         # Create boot service for overlay mount (persistent across reboots)
-        svc_dir = "/storage/.config/system.d"
+        svc_dir = "/var/home/armada/.config/system.d"
         wants_dir = os.path.join(svc_dir, "multi-user.target.wants")
         os.makedirs(wants_dir, exist_ok=True)
 
@@ -274,7 +274,7 @@ After=local-fs.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/sh -c 'mkdir -p /storage/.tmp/pv-upper /storage/.tmp/pv-work && mount -t overlay overlay -o lowerdir=/usr/lib,upperdir=/storage/.tmp/pv-upper,workdir=/storage/.tmp/pv-work /usr/lib'
+ExecStart=/bin/sh -c 'mkdir -p /var/home/armada/.tmp/pv-upper /var/home/armada/.tmp/pv-work && mount -t overlay overlay -o lowerdir=/usr/lib,upperdir=/var/home/armada/.tmp/pv-upper,workdir=/var/home/armada/.tmp/pv-work /usr/lib'
 
 [Install]
 WantedBy=multi-user.target
@@ -299,7 +299,7 @@ WantedBy=multi-user.target
         import shutil
         try:
             # Remove overlay and work dirs
-            for d in [OVERLAY_UPPER, "/storage/.tmp/pv-work"]:
+            for d in [OVERLAY_UPPER, "/var/home/armada/.tmp/pv-work"]:
                 if os.path.exists(d):
                     shutil.rmtree(d)
 
@@ -307,7 +307,7 @@ WantedBy=multi-user.target
             os.system("umount -l /usr/lib 2>/dev/null || true")
 
             # Remove systemd services
-            svc_dir = "/storage/.config/system.d"
+            svc_dir = "/var/home/armada/.config/system.d"
             wants_dir = os.path.join(svc_dir, "multi-user.target.wants")
             for svc in ["lsfg-vk-install.service", "lsfg-vk-overlay.service"]:
                 for p in [os.path.join(svc_dir, svc), os.path.join(wants_dir, svc)]:
@@ -315,7 +315,7 @@ WantedBy=multi-user.target
                         os.remove(p)
 
             # Remove XDG manifest
-            xdg_manifest = "/storage/.local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json"
+            xdg_manifest = "/var/home/armada/.local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json"
             if os.path.exists(xdg_manifest):
                 os.remove(xdg_manifest)
 

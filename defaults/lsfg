@@ -2,7 +2,7 @@
 # LSFG-VK ARM64 launch wrapper
 # Reads per-game settings, sets env vars, enables thunks
 
-CONFIG_DIR="/storage/.config/lsfg-vk"
+CONFIG_DIR="/var/home/armada/.config/lsfg-vk"
 APP_ID="${SteamAppId:-0}"
 
 # Load settings (per-game or default)
@@ -29,7 +29,7 @@ if [ "$MULTIPLIER" = "0" ]; then
 else
     export LSFG_ENABLE=1
     export LSFGVK_ENV=1
-    export LSFGVK_DLL_PATH="/storage/.local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll"
+    export LSFGVK_DLL_PATH="/var/home/armada/.local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll"
     export LSFGVK_MULTIPLIER="$MULTIPLIER"
     export LSFGVK_FLOW_SCALE="$FLOW_SCALE"
     export LSFGVK_PERFORMANCE_MODE="$PERF_MODE"
@@ -39,13 +39,13 @@ fi
 # Enable FEX Vulkan thunks (JIT - ensures thunks are on before game starts)
 python3 -c "
 import json, os
-c='/storage/.config/fex-emu/Config.json'
+c='/var/home/armada/.config/fex-emu/Config.json'
 if os.path.exists(c):
     d=json.load(open(c))
     if d.get('ThunksDB',{}).get('Vulkan')!=1:
         d.setdefault('ThunksDB',{})['Vulkan']=1
         json.dump(d,open(c,'w'),indent=2)
 " 2>/dev/null
-export STEAM_COMPAT_FEX_CONFIG=/storage/.config/fex-emu/Config.json
+export STEAM_COMPAT_FEX_CONFIG=/var/home/armada/.config/fex-emu/Config.json
 
 exec "$@"

@@ -43,13 +43,13 @@ The plugin UI handles:
 
 ## Configuration
 
-Per-game configs are stored at `/storage/.config/lsfg-vk/games/<APPID>.json`:
+Per-game configs are stored at `/var/home/armada/.config/lsfg-vk/games/<APPID>.json`:
 
 ```json
 {"multiplier": 2, "fps_limit": 30, "flow_scale": 0.3, "performance_mode": 1}
 ```
 
-Default config at `/storage/.config/lsfg-vk/default.json` applies to any game without a per-game override.
+Default config at `/var/home/armada/.config/lsfg-vk/default.json` applies to any game without a per-game override.
 
 ## Known Issues
 

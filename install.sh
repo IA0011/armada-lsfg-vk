@@ -14,11 +14,11 @@ set -euo pipefail
 LSFG_VK_VERSION="1.0.0"
 LSFG_VK_ZIP="https://github.com/PancakeTAS/lsfg-vk/releases/download/v${LSFG_VK_VERSION}/lsfg-vk-${LSFG_VK_VERSION}-x86_64.zip"
 REPO="https://raw.githubusercontent.com/seilent/distribution/next/packages/graphics/vulkan/lsfg-vk"
-LSFG_DIR="/storage/.config/lsfg-vk"
+LSFG_DIR="/var/home/armada/.config/lsfg-vk"
 BIN_DIR="${LSFG_DIR}/bin"
 SRC_DIR="${LSFG_DIR}/lib"
 GAMES_DIR="${LSFG_DIR}/games"
-FEX_ROOTFS="/storage/.local/share/fex-emu/RootFS/ArchLinux"
+FEX_ROOTFS="/var/home/armada/.local/share/fex-emu/RootFS/ArchLinux"
 TMP_DIR="/tmp/lsfg-vk-install"
 
 log() { echo "[lsfg-vk] $*"; }
@@ -62,9 +62,9 @@ deploy_fex() {
 cat > "${BIN_DIR}/lsfg-vk-setup" << 'SETUP'
 #!/bin/bash
 set -u
-LSFG_DIR="/storage/.config/lsfg-vk"
+LSFG_DIR="/var/home/armada/.config/lsfg-vk"
 SRC_DIR="${LSFG_DIR}/lib"
-FEX_ROOTFS="/storage/.local/share/fex-emu/RootFS/ArchLinux"
+FEX_ROOTFS="/var/home/armada/.local/share/fex-emu/RootFS/ArchLinux"
 
 [ -d "$FEX_ROOTFS" ] && {
     install -D -m 0644 "${SRC_DIR}/liblsfg-vk.so" "${FEX_ROOTFS}/usr/lib/liblsfg-vk.so"
@@ -75,8 +75,8 @@ SETUP
 chmod +x "${BIN_DIR}/lsfg-vk-setup"
 
 # Create systemd service for auto-deploy on boot
-mkdir -p /storage/.config/system.d
-cat > /storage/.config/system.d/lsfg-vk-setup.service << EOF
+mkdir -p /var/home/armada/.config/system.d
+cat > /var/home/armada/.config/system.d/lsfg-vk-setup.service << EOF
 [Unit]
 Description=Deploy LSFG-VK layer into FEX RootFS
 After=local-fs.target
@@ -90,16 +90,16 @@ ExecStart=${BIN_DIR}/lsfg-vk-setup
 WantedBy=multi-user.target
 EOF
 
-mkdir -p /storage/.config/system.d/multi-user.target.wants
-ln -sf /storage/.config/system.d/lsfg-vk-setup.service /storage/.config/system.d/multi-user.target.wants/lsfg-vk-setup.service
+mkdir -p /var/home/armada/.config/system.d/multi-user.target.wants
+ln -sf /var/home/armada/.config/system.d/lsfg-vk-setup.service /var/home/armada/.config/system.d/multi-user.target.wants/lsfg-vk-setup.service
 
 # Deploy now
 deploy_fex
 
 # Add bin dir to PATH via profile.d (sourced by /etc/profile, which Steam also sources)
-mkdir -p /storage/.config/profile.d
-cat > /storage/.config/profile.d/99-lsfg-vk.conf << 'EOF'
-export PATH="/storage/.config/lsfg-vk/bin:$PATH"
+mkdir -p /var/home/armada/.config/profile.d
+cat > /var/home/armada/.config/profile.d/99-lsfg-vk.conf << 'EOF'
+export PATH="/var/home/armada/.config/lsfg-vk/bin:$PATH"
 EOF
 
 log ""

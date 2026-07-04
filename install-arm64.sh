@@ -6,13 +6,13 @@
 set -euo pipefail
 
 LSFG_SO_URL="${LSFG_SO_URL:-https://github.com/seilent/lsfg-vk/releases/download/latest/lsfg-vk-arm64.tar.gz}"
-LSFG_DIR="/storage/.config/lsfg-vk"
+LSFG_DIR="/var/home/armada/.config/lsfg-vk"
 BIN_DIR="${LSFG_DIR}/bin"
 SRC_DIR="${LSFG_DIR}/lib"
 GAMES_DIR="${LSFG_DIR}/games"
-OVERLAY_UPPER="/storage/.tmp/pv-upper"
-OVERLAY_WORK="/storage/.tmp/pv-work"
-FEX_CONFIG="/storage/.config/fex-emu/Config.json"
+OVERLAY_UPPER="/var/home/armada/.tmp/pv-upper"
+OVERLAY_WORK="/var/home/armada/.tmp/pv-work"
+FEX_CONFIG="/var/home/armada/.config/fex-emu/Config.json"
 TMP_DIR="/tmp/lsfg-vk-install"
 
 log() { echo "[lsfg-vk-arm64] $*"; }
@@ -22,12 +22,12 @@ if [ "$(uname -m)" != "aarch64" ]; then
 fi
 
 # Clean all previous installations
-FEX_ROOTFS="/storage/.local/share/fex-emu/RootFS/ArchLinux"
+FEX_ROOTFS="/var/home/armada/.local/share/fex-emu/RootFS/ArchLinux"
 rm -f "${FEX_ROOTFS}/usr/lib/liblsfg-vk.so" "${FEX_ROOTFS}/usr/lib/liblsfg-vk-arm64.so"
 rm -f "${FEX_ROOTFS}/usr/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation"*.json
 rm -rf "${SRC_DIR}" "${OVERLAY_UPPER}" "${OVERLAY_WORK}"
-rm -f /storage/.config/system.d/lsfg-vk-setup.service /storage/.config/system.d/multi-user.target.wants/lsfg-vk-setup.service
-rm -f /storage/.config/system.d/lsfg-vk-overlay.service /storage/.config/system.d/multi-user.target.wants/lsfg-vk-overlay.service
+rm -f /var/home/armada/.config/system.d/lsfg-vk-setup.service /var/home/armada/.config/system.d/multi-user.target.wants/lsfg-vk-setup.service
+rm -f /var/home/armada/.config/system.d/lsfg-vk-overlay.service /var/home/armada/.config/system.d/multi-user.target.wants/lsfg-vk-overlay.service
 umount -l /usr/lib 2>/dev/null || true
 
 # Create directories
@@ -76,14 +76,14 @@ if ! mount | grep -q "overlay on /usr/lib"; then
 fi
 
 # Also deploy manifest to XDG path (for native ARM64 Proton games without pressure-vessel)
-mkdir -p /storage/.local/share/vulkan/implicit_layer.d
+mkdir -p /var/home/armada/.local/share/vulkan/implicit_layer.d
 cp "${OVERLAY_UPPER}/pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json" \
-    /storage/.local/share/vulkan/implicit_layer.d/
+    /var/home/armada/.local/share/vulkan/implicit_layer.d/
 
 # Create boot service to mount overlay before Steam
 log "Installing boot service..."
-mkdir -p /storage/.config/system.d/multi-user.target.wants
-cat > /storage/.config/system.d/lsfg-vk-overlay.service << EOF
+mkdir -p /var/home/armada/.config/system.d/multi-user.target.wants
+cat > /var/home/armada/.config/system.d/lsfg-vk-overlay.service << EOF
 [Unit]
 Description=Mount /usr/lib overlay for LSFG-VK
 DefaultDependencies=no
@@ -98,8 +98,8 @@ ExecStart=/bin/sh -c 'mkdir -p ${OVERLAY_UPPER} ${OVERLAY_WORK} && mount -t over
 [Install]
 WantedBy=multi-user.target
 EOF
-ln -sf /storage/.config/system.d/lsfg-vk-overlay.service \
-    /storage/.config/system.d/multi-user.target.wants/lsfg-vk-overlay.service
+ln -sf /var/home/armada/.config/system.d/lsfg-vk-overlay.service \
+    /var/home/armada/.config/system.d/multi-user.target.wants/lsfg-vk-overlay.service
 
 # Install wrapper
 log "Installing wrapper..."
