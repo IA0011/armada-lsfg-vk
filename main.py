@@ -9,8 +9,9 @@ GAMES_DIR = os.path.join(LSFG_DIR, "games")
 DEFAULT_CONF = os.path.join(LSFG_DIR, "default.json")
 
 OVERLAY_UPPER = "/var/home/armada/.tmp/pv-upper"
-ARM64_SO = os.path.join(OVERLAY_UPPER, "liblsfg-vk-arm64.so")
-ARM64_MANIFEST = os.path.join(OVERLAY_UPPER, "pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json")
+XDG_LAYER_DIR = "/var/home/armada/.local/share/vulkan/implicit_layer.d"
+ARM64_SO = os.path.join(LSFG_DIR, "lib/liblsfg-vk-arm64.so")
+ARM64_MANIFEST = os.path.join(XDG_LAYER_DIR, "VkLayer_LS_frame_generation_arm64.json")
 ARM64_WRAPPER = os.path.join(LSFG_DIR, "bin/lsfg")
 
 FEX_CONFIG = "/var/home/armada/.config/fex-emu/Config.json"
