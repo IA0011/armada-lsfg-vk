@@ -1,10 +1,17 @@
 {
   "name": "LSFG Frame Generation",
   "author": "seilent",
-  "flags": ["root"],
+  "flags": [
+    "root"
+  ],
   "api_version": 1,
   "publish": {
-    "tags": ["framegen", "lsfg", "vulkan", "rocknix"],
+    "tags": [
+      "framegen",
+      "lsfg",
+      "vulkan",
+      "rocknix"
+    ],
     "description": "Enable Lossless Scaling frame generation on ROCKNIX. Supports ARM64 native via FEX Vulkan thunks and x86_64 FEX RootFS deployment."
   }
 }
