@@ -15,7 +15,7 @@ OVERLAY_WORK="$TARGET_HOME/.local/share/lsfg-vk/pv-work"
 FEX_CONFIG="$TARGET_HOME/.config/fex-emu/Config.json"
 TMP_DIR="/tmp/lsfg-vk-install"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-log() { echo "[lsfg-vk-armada] $*"; }
+log() { echo "[armada-lsfg-vk] $*"; }
 run_root() { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo "$@"; fi; }
 case "$(uname -m)" in
   aarch64|arm64|x86_64) ;;
