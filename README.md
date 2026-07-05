@@ -103,7 +103,7 @@ The Armada installer creates:
 The Decky UI runs the Armada installer automatically, but it can also be run manually over SSH:
 
 ```bash
-sudo bash /var/home/armada/homebrew/plugins/rocknix-lsfg-vk-armada/install-armada.sh
+sudo bash /var/home/armada/homebrew/plugins/armada-lsfg-vk/install-armada.sh
 sudo systemctl restart plugin_loader.service
 ```
 
@@ -121,7 +121,7 @@ ls -l /var/home/armada/.local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_gen
 ```bash
 sudo systemctl stop plugin_loader.service
 
-sudo rm -rf /var/home/armada/homebrew/plugins/rocknix-lsfg-vk-armada
+sudo rm -rf /var/home/armada/homebrew/plugins/armada-lsfg-vk
 sudo rm -rf /var/home/armada/.config/lsfg-vk
 sudo rm -rf /var/home/armada/.local/lib/lsfg-vk
 
@@ -160,15 +160,15 @@ dist/
 From the parent directory:
 
 ```bash
-zip -r rocknix-lsfg-vk-armada.zip rocknix-lsfg-vk-armada \
-  -x "rocknix-lsfg-vk-armada/.git/*" \
-  -x "rocknix-lsfg-vk-armada/node_modules/*"
+zip -r armada-lsfg-vk.zip armada-lsfg-vk \
+  -x "armada-lsfg-vk/.git/*" \
+  -x "armada-lsfg-vk/node_modules/*"
 ```
 
 Verify the installer inside the ZIP:
 
 ```bash
-unzip -p rocknix-lsfg-vk-armada.zip rocknix-lsfg-vk-armada/install-armada.sh | grep -nE "uname -m|aarch64|x86_64|unsupported"
+unzip -p armada-lsfg-vk.zip armada-lsfg-vk/install-armada.sh | grep -nE "uname -m|aarch64|x86_64|unsupported"
 ```
 
 Expected installer check:
