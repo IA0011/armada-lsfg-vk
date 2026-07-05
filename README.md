@@ -4,18 +4,13 @@ Decky Loader plugin for installing and configuring **LSFG-VK frame generation** 
 
 This fork is adapted for devices such as the **AYN Odin 3** running Armada OS.
 
-## What It Does
+## Features
 
-The plugin provides a Decky UI for LSFG-VK and installs a working Armada runtime:
-
-- Downloads the ARM64 `liblsfg-vk` library
-- Installs LSFG launch wrappers:
-  - `~/lsfg`
-  - `~/lsfg-force`
+- Installs the ARM64 LSFG-VK runtime
+- Adds launch wrappers: `~/lsfg` and `~/lsfg-force`
 - Installs the Vulkan implicit layer manifest
 - Enables FEX Vulkan thunks
-- Creates default and per-game LSFG config files
-- Provides per-game LSFG settings through Decky
+- Provides Decky UI controls for default and per-game LSFG settings
 
 ## Requirements
 
@@ -23,41 +18,27 @@ The plugin provides a Decky UI for LSFG-VK and installs a working Armada runtime
 - Decky Loader
 - Steam
 - Lossless Scaling installed through Steam
-- Internet connection for first-time runtime install
+- Internet connection for first-time install
 
 ## Installation
 
-Install the plugin through Decky Loader.
-
-Open:
-
-```text
-LSFG Frame Generation (Armada)
-```
-
-Press:
+Install the plugin through Decky Loader, open **LSFG Frame Generation (Armada)**, then press:
 
 ```text
 Install LSFG-VK
 ```
 
-The installer will deploy the LSFG-VK runtime and wrappers automatically.
-
-## Steam Launch Options
-
-Default launch option:
+After installation, use this Steam launch option:
 
 ```text
 ~/lsfg %command%
 ```
 
-Optional forced-layer launch option:
+If a game does not load the LSFG Vulkan layer, try the forced-layer wrapper:
 
 ```text
 ~/lsfg-force %command%
 ```
-
-Use the default wrapper first. Try the forced wrapper only if the game does not detect or load the LSFG Vulkan layer.
 
 ## Configuration
 
@@ -73,7 +54,7 @@ Per-game configs:
 /var/home/armada/.config/lsfg-vk/games/<APPID>.json
 ```
 
-Example config:
+Example:
 
 ```json
 {
@@ -84,9 +65,9 @@ Example config:
 }
 ```
 
-## Installed Runtime Paths
+## Installed Files
 
-The Armada installer creates:
+The installer creates:
 
 ```text
 /var/home/armada/.config/lsfg-vk/bin/lsfg
@@ -98,22 +79,36 @@ The Armada installer creates:
 /var/home/armada/lsfg-force
 ```
 
-## Manual Runtime Install
+## Manual Install or Repair
 
-The Decky UI runs the Armada installer automatically, but it can also be run manually over SSH:
+The Decky UI runs the installer automatically, but it can also be run over SSH:
 
 ```bash
 sudo bash /var/home/armada/homebrew/plugins/armada-lsfg-vk/install-armada.sh
 sudo systemctl restart plugin_loader.service
 ```
 
-Verify install:
+## Troubleshooting
+
+Check Decky logs:
+
+```bash
+sudo journalctl -u plugin_loader.service -n 180 --no-pager -l | grep -Ei "lsfg|install|status|traceback|error|failed|arch|unsupported"
+```
+
+Check runtime files:
 
 ```bash
 find /var/home/armada/.config/lsfg-vk -maxdepth 4 -type f -o -type l 2>/dev/null
 find /var/home/armada/.local/lib/lsfg-vk -maxdepth 3 -type f -o -type l 2>/dev/null
 ls -l /var/home/armada/lsfg /var/home/armada/lsfg-force 2>/dev/null
 ls -l /var/home/armada/.local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json 2>/dev/null
+```
+
+Restart Decky:
+
+```bash
+sudo systemctl restart plugin_loader.service
 ```
 
 ## Clean Uninstall
@@ -137,22 +132,9 @@ sudo systemctl daemon-reload
 
 ## Building
 
-Install dependencies:
-
 ```bash
 npm install
-```
-
-Build the Decky frontend:
-
-```bash
 npm run build
-```
-
-Build output is written to:
-
-```text
-dist/
 ```
 
 ## Packaging
@@ -165,88 +147,22 @@ zip -r armada-lsfg-vk.zip armada-lsfg-vk \
   -x "armada-lsfg-vk/node_modules/*"
 ```
 
-Verify the installer inside the ZIP:
-
-```bash
-unzip -p armada-lsfg-vk.zip armada-lsfg-vk/install-armada.sh | grep -nE "uname -m|aarch64|x86_64|unsupported"
-```
-
-Expected installer check:
-
-```bash
-case "$(uname -m)" in
-  aarch64|arm64|x86_64) ;;
-  *) log "ERROR: unsupported arch/context; got $(uname -m)"; exit 1 ;;
-esac
-```
-
-Decky may report `x86_64` in the plugin install context on Armada OS, so the installer allows that context while still installing the ARM64 LSFG-VK runtime.
-
-## Troubleshooting
-
-Check Decky plugin logs:
-
-```bash
-sudo journalctl -u plugin_loader.service -n 180 --no-pager -l | grep -Ei "lsfg|install|status|traceback|error|failed|arch|unsupported"
-```
-
-Restart Decky:
-
-```bash
-sudo systemctl restart plugin_loader.service
-```
-
-Check runtime files:
-
-```bash
-find /var/home/armada/.config/lsfg-vk -maxdepth 4 -type f -o -type l 2>/dev/null
-find /var/home/armada/.local/lib/lsfg-vk -maxdepth 3 -type f -o -type l 2>/dev/null
-ls -l /var/home/armada/lsfg /var/home/armada/lsfg-force 2>/dev/null
-ls -l /var/home/armada/.local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json 2>/dev/null
-```
-
 ## Notes
 
-Some games may work with:
-
-```text
-~/lsfg %command%
-```
-
-Others may require:
-
-```text
-~/lsfg-force %command%
-```
-
-Compatibility depends on the game, Proton build, WineVulkan, vkd3d, Gamescope, FEX, and the Armada OS runtime.
-
-## Known Issues
-
-- Some games may load the LSFG layer but not generate frames.
+- Some games work with `~/lsfg %command%`.
+- Some games may require `~/lsfg-force %command%`.
+- Compatibility depends on the game, Proton, WineVulkan, vkd3d, Gamescope, FEX, and Armada OS.
+- Some games may load the layer but not generate frames.
 - Forced-layer mode may crash some Wine/Proton titles.
-- Compatibility on Snapdragon Elite / ARM64 devices is still experimental.
-- Results vary depending on Proton and the game’s graphics API.
+- ARM64 LSFG-VK compatibility is still experimental.
 
 ## Credits
 
-Forked from:
+Forked from `seilent/rocknix-lsfg-vk`.
 
-```text
-seilent/rocknix-lsfg-vk
-```
+Adapted for Armada OS by `IA0011`.
 
-Adapted for Armada OS by:
-
-```text
-IA0011
-```
-
-Development assistance:
-
-```text
 AI tools were used to help debug, adapt, document, and package this Armada OS fork.
-```
 
 ## License
 
