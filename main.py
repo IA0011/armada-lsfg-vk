@@ -3,31 +3,42 @@ import json
 import urllib.request
 import tarfile
 import decky
-import subprocess
 
-LSFG_DIR = "/var/home/armada/.config/lsfg-vk"
+def _decky_user_home():
+    user = os.environ.get("DECKY_USER") or os.environ.get("SUDO_USER") or "armada"
+    home = os.environ.get("HOME")
+    if home and home not in ("/root", ""):
+        return home
+    try:
+        import pwd
+        return pwd.getpwnam(user).pw_dir
+    except Exception:
+        return f"/home/{user}"
+
+USER_HOME = _decky_user_home()
+LSFG_DIR = os.path.join(USER_HOME, ".config/lsfg-vk")
 GAMES_DIR = os.path.join(LSFG_DIR, "games")
 DEFAULT_CONF = os.path.join(LSFG_DIR, "default.json")
-
-OVERLAY_UPPER = "/var/home/armada/.tmp/pv-upper"
-XDG_LAYER_DIR = "/var/home/armada/.local/share/vulkan/implicit_layer.d"
-ARM64_SO = os.path.join(LSFG_DIR, "lib/liblsfg-vk-arm64.so")
-ARM64_MANIFEST = os.path.join(XDG_LAYER_DIR, "VkLayer_LS_frame_generation_arm64.json")
+USER_LIB_DIR = os.path.join(USER_HOME, ".local/lib/lsfg-vk")
+OVERLAY_UPPER = os.path.join(USER_HOME, ".local/share/lsfg-vk/pv-upper")
+OVERLAY_WORK = os.path.join(USER_HOME, ".local/share/lsfg-vk/pv-work")
+ARM64_SO = os.path.join(USER_LIB_DIR, "liblsfg-vk-arm64.so")
 ARM64_WRAPPER = os.path.join(LSFG_DIR, "bin/lsfg")
-
-FEX_CONFIG = "/var/home/armada/.config/fex-emu/Config.json"
+ARM64_MANIFEST = os.path.join(USER_HOME, ".local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json")
+PV_ARM64_MANIFEST = os.path.join(OVERLAY_UPPER, "pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json")
+FEX_CONFIG = os.path.join(USER_HOME, ".config/fex-emu/Config.json")
 DOWNLOAD_URL = "https://github.com/seilent/lsfg-vk/releases/download/latest/lsfg-vk-arm64.tar.gz"
-
-LOSSLESS_DLL_PATHS = [
-    "/var/home/armada/.local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll",
-    "/var/home/armada/games-internal/roms/steam/steamapps/common/Lossless Scaling/Lossless.dll",
-    "/var/home/armada/roms/steam/steamapps/common/Lossless Scaling/Lossless.dll",
+DLL_CANDIDATES = [
+    os.path.join(USER_HOME, ".local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll"),
+    os.path.join(USER_HOME, ".steam/steam/steamapps/common/Lossless Scaling/Lossless.dll"),
+    os.path.join(USER_HOME, ".var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Lossless Scaling/Lossless.dll"),
 ]
+LOSSLESS_DLL_PATHS = DLL_CANDIDATES
 
 DEFAULT_SETTINGS = {
     "multiplier": 2,
-    "fps_limit": 30,
-    "flow_scale": 0.3,
+    "fps_limit": 60,
+    "flow_scale": 0.8,
     "performance_mode": 1,
 }
 
@@ -189,117 +200,31 @@ class Plugin:
             return {"success": False, "error": str(e)}
 
     async def install_runtime(self):
-        """Schedule deploy service for next boot (just local file ops, no download)."""
-        deploy_script = os.path.join(LSFG_DIR, "bin/deploy.sh")
-        os.makedirs(os.path.dirname(deploy_script), exist_ok=True)
-
-        # Write deploy script that does local-only operations
+        """Run the Armada/Fedora installer immediately."""
+        import subprocess
         plugin_dir = decky.DECKY_PLUGIN_DIR
-        with open(deploy_script, "w") as f:
-            f.write(f"""#!/bin/sh
-set -eu
-LSFG_DIR="/var/home/armada/.config/lsfg-vk"
-OVERLAY_UPPER="/var/home/armada/.tmp/pv-upper"
-OVERLAY_WORK="/var/home/armada/.tmp/pv-work"
-FEX_ROOTFS="/var/home/armada/.local/share/fex-emu/RootFS/ArchLinux"
-
-# Clean old installs
-rm -f "${{FEX_ROOTFS}}/usr/lib/liblsfg-vk.so" "${{FEX_ROOTFS}}/usr/lib/liblsfg-vk-arm64.so"
-rm -f "${{FEX_ROOTFS}}/usr/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation"*.json
-rm -rf "$OVERLAY_UPPER" "$OVERLAY_WORK"
-umount -l /usr/lib 2>/dev/null || true
-
-# Deploy to overlay
-mkdir -p "$OVERLAY_UPPER/pressure-vessel/overrides/share/vulkan/implicit_layer.d" "$OVERLAY_WORK"
-cp "$LSFG_DIR/lib/liblsfg-vk-arm64.so" "$OVERLAY_UPPER/liblsfg-vk-arm64.so"
-cp "{plugin_dir}/defaults/VkLayer_LS_frame_generation.json" \
-    "$OVERLAY_UPPER/pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json"
-
-# Mount overlay
-mount -t overlay overlay -o "lowerdir=/usr/lib,upperdir=$OVERLAY_UPPER,workdir=$OVERLAY_WORK" /usr/lib
-
-# XDG manifest for native ARM64 Proton
-mkdir -p /var/home/armada/.local/share/vulkan/implicit_layer.d
-cp "$OVERLAY_UPPER/pressure-vessel/overrides/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json" \
-    /var/home/armada/.local/share/vulkan/implicit_layer.d/
-
-# Wrapper
-cp "{plugin_dir}/defaults/lsfg" "$LSFG_DIR/bin/lsfg"
-chmod +x "$LSFG_DIR/bin/lsfg"
-ln -sf "$LSFG_DIR/bin/lsfg" ~/lsfg
-
-# Thunks
-python3 -c "
-import json, os
-c='/var/home/armada/.config/fex-emu/Config.json'
-os.makedirs(os.path.dirname(c), exist_ok=True)
-cfg = json.load(open(c)) if os.path.exists(c) else {{}}
-cfg.setdefault('ThunksDB', {{}})['Vulkan'] = 1
-json.dump(cfg, open(c, 'w'), indent=2)
-"
-
-# Default config
-[ -f "$LSFG_DIR/default.json" ] || echo '{{"multiplier": 2, "fps_limit": 30, "flow_scale": 0.3, "performance_mode": 1}}' > "$LSFG_DIR/default.json"
-""")
-        os.chmod(deploy_script, 0o755)
-
-        # Armada: Decky runs this plugin as root, so deploy immediately.
-        # Do not rely on a post-reboot systemd service.
-        subprocess.run(["/bin/bash", deploy_script], check=True)
-        return True
-
-
-        # Create boot service for overlay mount (persistent across reboots)
-        svc_dir = "/var/home/armada/.config/system.d"
-        wants_dir = os.path.join(svc_dir, "multi-user.target.wants")
-        os.makedirs(wants_dir, exist_ok=True)
-
-        # One-shot install service (runs deploy.sh once, then overlay service handles reboots)
-        svc_path = os.path.join(svc_dir, "lsfg-vk-install.service")
-        with open(svc_path, "w") as f:
-            f.write(f"""[Unit]
-Description=LSFG-VK ARM64 deploy
-After=local-fs.target
-
-[Service]
-Type=oneshot
-ExecStart={deploy_script}
-ExecStartPost=/bin/rm -f {svc_path} {wants_dir}/lsfg-vk-install.service
-""")
-        link = os.path.join(wants_dir, "lsfg-vk-install.service")
-        if os.path.lexists(link):
-            os.remove(link)
-        os.symlink(svc_path, link)
-
-        # Persistent overlay service (re-mounts on every boot)
-        overlay_svc = os.path.join(svc_dir, "lsfg-vk-overlay.service")
-        with open(overlay_svc, "w") as f:
-            f.write(f"""[Unit]
-Description=Mount /usr/lib overlay for LSFG-VK
-DefaultDependencies=no
-After=local-fs.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/sh -c 'mkdir -p /var/home/armada/.tmp/pv-upper /var/home/armada/.tmp/pv-work && mount -t overlay overlay -o lowerdir=/usr/lib,upperdir=/var/home/armada/.tmp/pv-upper,workdir=/var/home/armada/.tmp/pv-work /usr/lib'
-
-[Install]
-WantedBy=multi-user.target
-""")
-        link2 = os.path.join(wants_dir, "lsfg-vk-overlay.service")
-        if os.path.lexists(link2):
-            os.remove(link2)
-        os.symlink(overlay_svc, link2)
-
-        decky.logger.info("Deploy scheduled for next boot")
-        return True
+        installer = os.path.join(plugin_dir, "install-armada.sh")
+        if not os.path.exists(installer):
+            decky.logger.error(f"install-armada.sh not found at {installer}")
+            return False
+        env = os.environ.copy()
+        env.setdefault("SUDO_USER", os.environ.get("DECKY_USER", "armada"))
+        try:
+            result = subprocess.run(["/usr/bin/env", "bash", installer], env=env, capture_output=True, text=True, timeout=180)
+            if result.stdout:
+                decky.logger.info(result.stdout)
+            if result.stderr:
+                decky.logger.warning(result.stderr)
+            if result.returncode != 0:
+                decky.logger.error(f"install-armada.sh failed with exit code {result.returncode}")
+                return False
+            return True
+        except Exception as e:
+            decky.logger.error(f"install_runtime failed: {e}")
+            return False
 
     async def reinstall_layer(self):
-        """Download fresh .so and re-schedule deploy (user must reboot)."""
-        result = await self.download_layer()
-        if not result.get("success"):
-            return False
+        """Re-run the Armada installer."""
         return await self.install_runtime()
 
     async def uninstall_lsfg(self):
@@ -307,7 +232,7 @@ WantedBy=multi-user.target
         import shutil
         try:
             # Remove overlay and work dirs
-            for d in [OVERLAY_UPPER, "/var/home/armada/.tmp/pv-work"]:
+            for d in [OVERLAY_UPPER, OVERLAY_WORK]:
                 if os.path.exists(d):
                     shutil.rmtree(d)
 
@@ -315,20 +240,20 @@ WantedBy=multi-user.target
             os.system("umount -l /usr/lib 2>/dev/null || true")
 
             # Remove systemd services
-            svc_dir = "/var/home/armada/.config/system.d"
-            wants_dir = os.path.join(svc_dir, "multi-user.target.wants")
+            svc_dir = "/etc/systemd/system"
+            wants_dir = "/etc/systemd/system/multi-user.target.wants"
             for svc in ["lsfg-vk-install.service", "lsfg-vk-overlay.service"]:
                 for p in [os.path.join(svc_dir, svc), os.path.join(wants_dir, svc)]:
                     if os.path.lexists(p):
                         os.remove(p)
 
             # Remove XDG manifest
-            xdg_manifest = "/var/home/armada/.local/share/vulkan/implicit_layer.d/VkLayer_LS_frame_generation_arm64.json"
+            xdg_manifest = ARM64_MANIFEST
             if os.path.exists(xdg_manifest):
                 os.remove(xdg_manifest)
 
             # Remove wrapper symlink
-            home_lsfg = os.path.expanduser("~/lsfg")
+            home_lsfg = os.path.join(USER_HOME, "lsfg")
             if os.path.lexists(home_lsfg):
                 os.remove(home_lsfg)
 

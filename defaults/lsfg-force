@@ -1,6 +1,6 @@
 #!/bin/bash
-# Rocknix-style LSFG-VK wrapper for Armada OS / Fedora ARM64
-# Default launch option: ~/lsfg %command%
+# Forced-layer LSFG-VK wrapper for Armada games that do not inject implicitly.
+# Launch option: ~/lsfg-force %command%
 
 USER_HOME="${HOME:-/var/home/armada}"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$USER_HOME/.config}/lsfg-vk"
@@ -17,10 +17,7 @@ fi
     echo '{"multiplier": 2, "fps_limit": 60, "flow_scale": 0.8, "performance_mode": 1}' > "$SETTINGS"
 }
 
-json_get() {
-    python3 -c "import json; d=json.load(open('$SETTINGS')); print(d.get('$1', '$2'))" 2>/dev/null || echo "$2"
-}
-
+json_get() { python3 -c "import json; d=json.load(open('$SETTINGS')); print(d.get('$1', '$2'))" 2>/dev/null || echo "$2"; }
 MULTIPLIER="$(json_get multiplier 2)"
 FPS_LIMIT="$(json_get fps_limit 60)"
 FLOW_SCALE="$(json_get flow_scale 0.8)"
@@ -41,36 +38,25 @@ if [ "$MULTIPLIER" = "0" ]; then
 else
     export LSFG_ENABLE=1
     export LSFGVK_ENV=1
+    if [ -n "${VK_INSTANCE_LAYERS:-}" ]; then
+        case ":$VK_INSTANCE_LAYERS:" in
+            *":VK_LAYER_LSFGVK_frame_generation:"*) ;;
+            *) export VK_INSTANCE_LAYERS="VK_LAYER_LSFGVK_frame_generation:$VK_INSTANCE_LAYERS" ;;
+        esac
+    else
+        export VK_INSTANCE_LAYERS="VK_LAYER_LSFGVK_frame_generation"
+    fi
     [ -n "$DLL_PATH" ] && export LSFGVK_DLL_PATH="$DLL_PATH"
     export LSFGVK_MULTIPLIER="$MULTIPLIER"
     export LSFGVK_FLOW_SCALE="$FLOW_SCALE"
     export LSFGVK_PERFORMANCE_MODE="$PERF_MODE"
     export DXVK_FRAME_RATE="$FPS_LIMIT"
-    # Armada may inject DXVK_CONFIG/VKD3D swapchain latency externally.
-    # Try to keep this wrapper close to Rocknix's environment.
-    unset DXVK_CONFIG
-    unset VKD3D_SWAPCHAIN_LATENCY_FRAMES
-fi
-
-# Match Rocknix's working DX12/VKD3D environment as closely as possible.
-export ENABLE_GAMESCOPE_WSI=1
 # Low-latency Armada overrides validated against Rocknix behavior.
-# Armada may otherwise inject async-flip disable/color/NV12 settings that add input lag.
+export ENABLE_GAMESCOPE_WSI=1
 export GAMESCOPE_DISABLE_ASYNC_FLIPS=0
 export STEAM_GAMESCOPE_COLOR_MANAGED=0
 export GAMESCOPE_NV12_COLORSPACE=
-export DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1=1
-export DXVK_ENABLE_NVAPI=1
-export DXVK_LOG_LEVEL=none
-export VKD3D_DEBUG=none
-export VKD3D_SHADER_DEBUG=none
-export STEAM_DISABLE_MANGOAPP_ATOM_WORKAROUND=1
-
-# Rocknix relies on implicit pressure-vessel discovery, not explicit VK_INSTANCE_LAYERS forcing.
-unset VK_LOADER_LAYERS_ENABLE
-unset VK_LOADER_LAYERS_ALLOW
-unset VK_LOADER_LAYERS_DISABLE
-export VK_IMPLICIT_LAYER_PATH="/usr/lib/pressure-vessel/overrides/share/vulkan/implicit_layer.d"
+fi
 
 FEX_CONFIG="${XDG_CONFIG_HOME:-$USER_HOME/.config}/fex-emu/Config.json"
 python3 -c "
@@ -81,6 +67,5 @@ d=json.load(open(c)) if os.path.exists(c) else {}
 d.setdefault('ThunksDB',{})['Vulkan']=1
 json.dump(d,open(c,'w'),indent=2)
 " 2>/dev/null
-
 export STEAM_COMPAT_FEX_CONFIG="$FEX_CONFIG"
 exec "$@"

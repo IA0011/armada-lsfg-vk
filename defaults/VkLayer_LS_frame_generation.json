@@ -3,12 +3,11 @@
   "layer": {
     "name": "VK_LAYER_LSFGVK_frame_generation",
     "type": "GLOBAL",
-    "library_path": "/var/home/armada/.config/lsfg-vk/lib/liblsfg-vk-arm64.so",
+    "library_path": "/usr/lib/liblsfg-vk-arm64.so",
     "api_version": "1.4.328",
     "implementation_version": "2",
     "description": "LSFG frame generation (ARM64 native)",
-    "disable_environment": {
-      "DISABLE_LSFGVK": "1"
-    }
+    "enable_environment": { "LSFG_ENABLE": "1" },
+    "disable_environment": { "DISABLE_LSFGVK": "1" }
   }
 }

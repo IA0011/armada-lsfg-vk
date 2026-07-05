@@ -1,6 +1,6 @@
 {
-  "name": "LSFG Frame Generation",
-  "author": "IA0011",
+  "name": "LSFG Frame Generation (Armada)",
+  "author": "seilent / Armada port",
   "flags": [
     "root"
   ],
@@ -10,8 +10,9 @@
       "framegen",
       "lsfg",
       "vulkan",
-      "armada"
+      "armada",
+      "fedora"
     ],
-    "description": "Enable Lossless Scaling frame generation on Armada OS. Supports ARM64 native via FEX Vulkan thunks."
+    "description": "Enable LSFG-VK frame generation on Armada OS/Fedora ARM64 with FEX Vulkan thunks."
   }
 }
