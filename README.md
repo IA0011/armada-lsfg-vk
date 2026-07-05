@@ -242,6 +242,12 @@ Adapted for Armada OS by:
 IA0011
 ```
 
+Development assistance:
+
+```text
+AI tools were used to help debug, adapt, document, and package this Armada OS fork.
+```
+
 ## License
 
 GPL-2.0
